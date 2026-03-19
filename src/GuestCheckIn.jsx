@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 const TIMESLOTS = [
   { label: "3–4 PM", value: "3:00–4:00 PM" },
@@ -7,136 +7,63 @@ const TIMESLOTS = [
   { label: "6–7 PM", value: "6:00–7:00 PM" },
 ];
 
-// Returns a color theme object based on the current hour (0–23)
-function getHourTheme() {
-  const hour = new Date().getHours();
-  if (hour >= 0 && hour < 5) {
-    // Midnight → Early Morning (0–4): Deep navy/dark blue
-    return {
-      "--bg": "#0d1117",
-      "--surface": "#161b22",
-      "--border": "#30363d",
-      "--text": "#e6edf3",
-      "--muted": "#8b949e",
-      "--accent": "#58a6ff",
-      "--accent-soft": "#1f2d3d",
-      "--success-bg": "#0d2918",
-      "--success-border": "#2ea043",
-      "--success-text": "#56d364",
-      "--warn-bg": "#2d1d00",
-      "--warn-border": "#d29922",
-      "--warn-text": "#e3b341",
-      label: "🌙 Midnight",
-    };
-  } else if (hour >= 5 && hour < 8) {
-    // Dawn (5–7): Warm peach/lavender sunrise
-    return {
-      "--bg": "#fdf4ef",
-      "--surface": "#fff9f5",
-      "--border": "#f5cba7",
-      "--text": "#3d1a05",
-      "--muted": "#9b6b4a",
-      "--accent": "#c0392b",
-      "--accent-soft": "#fdecea",
-      "--success-bg": "#f0fdf4",
-      "--success-border": "#86efac",
-      "--success-text": "#15803d",
-      "--warn-bg": "#fffbeb",
-      "--warn-border": "#fcd34d",
-      "--warn-text": "#92400e",
-      label: "🌅 Dawn",
-    };
-  } else if (hour >= 8 && hour < 12) {
-    // Morning (8–11): Fresh sky blue / mint
-    return {
-      "--bg": "#eef9ff",
-      "--surface": "#ffffff",
-      "--border": "#bae6fd",
-      "--text": "#0c2d3f",
-      "--muted": "#5b8fa8",
-      "--accent": "#0284c7",
-      "--accent-soft": "#e0f2fe",
-      "--success-bg": "#f0fdf4",
-      "--success-border": "#86efac",
-      "--success-text": "#15803d",
-      "--warn-bg": "#fffbeb",
-      "--warn-border": "#fcd34d",
-      "--warn-text": "#92400e",
-      label: "🌤 Morning",
-    };
-  } else if (hour >= 12 && hour < 15) {
-    // Midday (12–14): Clean white / neutral (original)
-    return {
-      "--bg": "#f5f4f1",
-      "--surface": "#ffffff",
-      "--border": "#e5e7eb",
-      "--text": "#0f0f0f",
-      "--muted": "#6b7280",
-      "--accent": "#1a56db",
-      "--accent-soft": "#eff6ff",
-      "--success-bg": "#f0fdf4",
-      "--success-border": "#86efac",
-      "--success-text": "#15803d",
-      "--warn-bg": "#fffbeb",
-      "--warn-border": "#fcd34d",
-      "--warn-text": "#92400e",
-      label: "☀️ Midday",
-    };
-  } else if (hour >= 15 && hour < 18) {
-    // Afternoon (15–17): Warm amber / golden
-    return {
-      "--bg": "#fffbf0",
-      "--surface": "#ffffff",
-      "--border": "#fde68a",
-      "--text": "#1c1207",
-      "--muted": "#92740a",
-      "--accent": "#b45309",
-      "--accent-soft": "#fef3c7",
-      "--success-bg": "#f0fdf4",
-      "--success-border": "#86efac",
-      "--success-text": "#15803d",
-      "--warn-bg": "#fff1f2",
-      "--warn-border": "#fca5a5",
-      "--warn-text": "#991b1b",
-      label: "🌞 Afternoon",
-    };
-  } else if (hour >= 18 && hour < 21) {
-    // Evening (18–20): Warm orange / sunset
-    return {
-      "--bg": "#fff5ee",
-      "--surface": "#fffaf7",
-      "--border": "#fdba74",
-      "--text": "#1a0e00",
-      "--muted": "#a05c2e",
-      "--accent": "#ea580c",
-      "--accent-soft": "#ffedd5",
-      "--success-bg": "#f0fdf4",
-      "--success-border": "#86efac",
-      "--success-text": "#15803d",
-      "--warn-bg": "#fff1f2",
-      "--warn-border": "#fca5a5",
-      "--warn-text": "#991b1b",
-      label: "🌇 Evening",
-    };
-  } else {
-    // Night (21–23): Deep purple / indigo
-    return {
-      "--bg": "#0f0e17",
-      "--surface": "#1a1830",
-      "--border": "#312e5c",
-      "--text": "#e2e0f0",
-      "--muted": "#8b87c0",
-      "--accent": "#a78bfa",
-      "--accent-soft": "#1e1b3a",
-      "--success-bg": "#0d2918",
-      "--success-border": "#2ea043",
-      "--success-text": "#56d364",
-      "--warn-bg": "#2d1d00",
-      "--warn-border": "#d29922",
-      "--warn-text": "#e3b341",
-      label: "🌃 Night",
-    };
+// Sticker color system based on event time windows (PST)
+const STICKER_COLORS = [
+  { slot: "3:00–4:00 PM", startHour: 15, endHour: 16, color: "Blue",   hex: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe", emoji: "🔵" },
+  { slot: "4:00–5:00 PM", startHour: 16, endHour: 17, color: "Yellow", hex: "#eab308", bg: "#fefce8", border: "#fef08a", emoji: "🟡" },
+  { slot: "5:00–6:00 PM", startHour: 17, endHour: 18, color: "Green",  hex: "#22c55e", bg: "#f0fdf4", border: "#bbf7d0", emoji: "🟢" },
+  { slot: "6:00–7:00 PM", startHour: 18, endHour: 19, color: "Red",    hex: "#ef4444", bg: "#fff1f2", border: "#fecaca", emoji: "🔴" },
+];
+
+function getCurrentStickerColor() {
+  const hourPST = new Date().toLocaleString("en-US", { hour: "numeric", hour12: false, timeZone: "America/Los_Angeles" });
+  const h = parseInt(hourPST, 10);
+  return STICKER_COLORS.find((s) => h >= s.startHour && h < s.endHour) || null;
+}
+
+function StickerBanner({ currentSlot }) {
+  const [active, setActive] = useState(getCurrentStickerColor);
+
+  useEffect(() => {
+    // Re-check every 60 seconds in case the hour rolls over
+    const id = setInterval(() => setActive(getCurrentStickerColor()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  // If a slot is manually selected, highlight that slot's sticker color
+  const display = currentSlot
+    ? STICKER_COLORS.find((s) => s.slot === currentSlot) || active
+    : active;
+
+  if (!display) {
+    return (
+      <div style={{ background: "#f3f4f6", border: "1px solid #e5e7eb", borderRadius: 12, padding: "14px 20px", marginBottom: 24, display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 22 }}>🏷️</span>
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 15, color: "#374151" }}>No active check-in window</div>
+          <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Event hours: 3:00–7:00 PM · Select a timeslot to see the sticker color</div>
+        </div>
+      </div>
+    );
   }
+
+  return (
+    <div style={{ background: display.bg, border: `2px solid ${display.border}`, borderRadius: 12, padding: "16px 20px", marginBottom: 24, display: "flex", alignItems: "center", gap: 14 }}>
+      <div style={{ width: 48, height: 48, borderRadius: "50%", background: display.hex, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: `0 0 0 4px ${display.border}` }}>
+        {display.emoji}
+      </div>
+      <div>
+        <div style={{ fontWeight: 700, fontSize: 17, color: display.hex, letterSpacing: "-0.01em" }}>
+          Issue a {display.color.toUpperCase()} sticker
+        </div>
+        <div style={{ fontSize: 13, color: "#6b7280", marginTop: 3 }}>
+          Current window: <strong style={{ color: "#374151" }}>{display.slot}</strong>
+          {!currentSlot && <span style={{ marginLeft: 8, fontSize: 12, background: display.border, color: display.hex, padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Live</span>}
+          {currentSlot && currentSlot !== active?.slot && <span style={{ marginLeft: 8, fontSize: 12, background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Manual override</span>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function normalizeSlot(s) {
@@ -210,6 +137,10 @@ function GuestRow({ guest, currentSlot, onCheckin, onUndo }) {
   const rowBg = guest.checkedIn ? (correctSlot === false ? "var(--warn-bg)" : "var(--success-bg)") : "var(--surface)";
   const rowBorder = guest.checkedIn ? (correctSlot === false ? "var(--warn-border)" : "var(--success-border)") : "var(--border)";
   const initials = ((guest.first[0] || "") + (guest.last[0] || "")).toUpperCase();
+
+  // Find the sticker color for this guest's assigned slot
+  const sticker = STICKER_COLORS.find((s) => slotsMatch(s.slot, guest.slot));
+
   return (
     <div style={{ background: rowBg, border: `1px solid ${rowBorder}`, borderRadius: 10, padding: "12px 16px", transition: "all 0.15s ease" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -218,9 +149,14 @@ function GuestRow({ guest, currentSlot, onCheckin, onUndo }) {
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{guest.fullName}</div>
-          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             {guest.mlo && <span>MLO: {guest.mlo}</span>}
             {guest.slot && <span>Slot: {guest.slot}</span>}
+            {sticker && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: sticker.hex, background: sticker.bg, border: `1px solid ${sticker.border}`, padding: "1px 7px", borderRadius: 20 }}>
+                {sticker.emoji} {sticker.color} sticker
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -254,8 +190,6 @@ export default function GuestCheckIn() {
   const [search, setSearch] = useState("");
   const [loaded, setLoaded] = useState(false);
 
-  const theme = useMemo(() => getHourTheme(), []);
-
   const handleFile = (file) => {
     if (!file) return;
     const reader = new FileReader();
@@ -270,8 +204,11 @@ export default function GuestCheckIn() {
     setGuests((prev) => prev.map((g) => g.id === id ? { ...g, checkedIn: false, checkedInTime: null } : g));
   };
   const exportCSV = () => {
-    const headers = ["First Name", "Last Name", "MLO", "Guest Name", "Assigned Slot", "Checked In", "Check-In Time (PST)"];
-    const rows = guests.map((g) => [g.first, g.last, g.mlo, g.guestName, g.slot, g.checkedIn ? "Yes" : "No", g.checkedInTime || ""]);
+    const headers = ["First Name", "Last Name", "MLO", "Guest Name", "Assigned Slot", "Sticker Color", "Checked In", "Check-In Time (PST)"];
+    const rows = guests.map((g) => {
+      const sticker = STICKER_COLORS.find((s) => slotsMatch(s.slot, g.slot));
+      return [g.first, g.last, g.mlo, g.guestName, g.slot, sticker ? sticker.color : "", g.checkedIn ? "Yes" : "No", g.checkedInTime || ""];
+    });
     const csv = [headers, ...rows].map((row) => row.map((val) => `"${(val || "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -294,20 +231,13 @@ export default function GuestCheckIn() {
   }), [guests, currentSlot]);
   const slotGuestCount = currentSlot ? guests.filter((g) => slotsMatch(g.slot, currentSlot)).length : 0;
 
-  const cssVars = Object.fromEntries(
-    Object.entries(theme).filter(([k]) => k.startsWith("--"))
-  );
-
   return (
-    <div style={{ ...cssVars, fontFamily: "'Inter', system-ui, sans-serif", background: "var(--bg)", minHeight: "100vh", padding: "32px 20px" }}>
+    <div style={{ "--text": "#0f0f0f", "--muted": "#6b7280", "--surface": "#ffffff", "--bg": "#f5f4f1", "--border": "#e5e7eb", "--accent": "#1a56db", "--accent-soft": "#eff6ff", "--success-bg": "#f0fdf4", "--success-border": "#86efac", "--success-text": "#15803d", "--warn-bg": "#fffbeb", "--warn-border": "#fcd34d", "--warn-text": "#92400e", fontFamily: "'Inter', system-ui, sans-serif", background: "var(--bg)", minHeight: "100vh", padding: "32px 20px" }}>
       <div style={{ maxWidth: 760, margin: "0 auto" }}>
-        <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+        <div style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0 }}>Guest Check-In</h1>
-            <p style={{ fontSize: 14, color: "var(--muted)", marginTop: 6 }}>
-              Antique &amp; Appraisal Fair · KQED HQ · April 9
-              <span style={{ marginLeft: 10, fontSize: 12, opacity: 0.75 }}>{theme.label}</span>
-            </p>
+            <p style={{ fontSize: 14, color: "var(--muted)", marginTop: 6 }}>Antique &amp; Appraisal Fair · KQED HQ · April 9</p>
           </div>
           {loaded && (
             <button onClick={exportCSV} style={{ fontSize: 13, fontWeight: 500, padding: "8px 16px", borderRadius: 8, flexShrink: 0, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", cursor: "pointer" }}>
@@ -315,6 +245,8 @@ export default function GuestCheckIn() {
             </button>
           )}
         </div>
+
+        <StickerBanner currentSlot={currentSlot} />
 
         {!loaded && (
           <div
@@ -333,19 +265,24 @@ export default function GuestCheckIn() {
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 20 }}>
           <span style={{ fontSize: 13, color: "var(--muted)", marginRight: 4 }}>Active timeslot:</span>
-          {TIMESLOTS.map((s) => (
-            <button key={s.value} onClick={() => setCurrentSlot(s.value)} style={{ fontSize: 13, fontWeight: 500, padding: "6px 14px", borderRadius: 8, border: currentSlot === s.value ? "1.5px solid var(--accent)" : "1px solid var(--border)", background: currentSlot === s.value ? "var(--accent-soft)" : "var(--surface)", color: currentSlot === s.value ? "var(--accent)" : "var(--muted)", cursor: "pointer" }}>
-              {s.label}
-            </button>
-          ))}
+          {TIMESLOTS.map((s) => {
+            const sc = STICKER_COLORS.find((c) => c.slot === s.value);
+            return (
+              <button key={s.value} onClick={() => setCurrentSlot(currentSlot === s.value ? null : s.value)}
+                style={{ fontSize: 13, fontWeight: 500, padding: "6px 14px", borderRadius: 8, border: currentSlot === s.value ? `1.5px solid ${sc?.hex || "var(--accent)"}` : "1px solid var(--border)", background: currentSlot === s.value ? (sc?.bg || "var(--accent-soft)") : "var(--surface)", color: currentSlot === s.value ? (sc?.hex || "var(--accent)") : "var(--muted)", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                {sc && <span>{sc.emoji}</span>}
+                {s.label}
+              </button>
+            );
+          })}
         </div>
 
         {loaded && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 20 }}>
             <StatCard label="Total guests" value={stats.total} />
-            <StatCard label="Checked in" value={stats.checkedIn} accent="var(--success-bg)" />
+            <StatCard label="Checked in" value={stats.checkedIn} accent="#f0fdf4" />
             <StatCard label="This slot" value={stats.thisSlot} />
-            <StatCard label="Wrong slot" value={stats.wrongSlot} accent={stats.wrongSlot > 0 ? "var(--warn-bg)" : undefined} />
+            <StatCard label="Wrong slot" value={stats.wrongSlot} accent={stats.wrongSlot > 0 ? "#fffbeb" : undefined} />
           </div>
         )}
 
